@@ -6,6 +6,6 @@ import com.badlogic.gdx.Game;
 public class KayabGame extends Game {
     @Override
     public void create() {
-        setScreen(new FirstScreen());
+        setScreen(new GameScreen(this));
     }
 }
