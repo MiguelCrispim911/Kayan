@@ -5,6 +5,8 @@ import com.badlogic.gdx.physics.box2d.ContactImpulse;
 import com.badlogic.gdx.physics.box2d.ContactListener;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.Manifold;
+import com.kayab.entities.Arrow;
+import com.kayab.entities.Enemy;
 import com.kayab.entities.Player;
 
 public class ContactListenerManager implements ContactListener {
@@ -15,22 +17,14 @@ public class ContactListenerManager implements ContactListener {
         Fixture fb = contact.getFixtureB();
 
         // Detección de suelo para el jugador
-        if (fa.getUserData() != null && fa.getUserData().equals("foot")) {
-            if (fb.getBody().getUserData() != null && fb.getBody().getUserData().equals("platform")) {
-                Object playerObj = fa.getBody().getUserData();
-                if (playerObj instanceof Player) {
-                    ((Player) playerObj).setOnGround(true);
-                }
-            }
+        if (isPlayerFoot(fa) && isPlatform(fb)) {
+            setPlayerOnGround(fa, true);
+        } else if (isPlayerFoot(fb) && isPlatform(fa)) {
+            setPlayerOnGround(fb, true);
         }
-        if (fb.getUserData() != null && fb.getUserData().equals("foot")) {
-            if (fa.getBody().getUserData() != null && fa.getBody().getUserData().equals("platform")) {
-                Object playerObj = fb.getBody().getUserData();
-                if (playerObj instanceof Player) {
-                    ((Player) playerObj).setOnGround(true);
-                }
-            }
-        }
+
+        // Colisión de flechas (US06, US07, US08)
+        checkArrowCollision(fa, fb);
     }
 
     @Override
@@ -38,17 +32,57 @@ public class ContactListenerManager implements ContactListener {
         Fixture fa = contact.getFixtureA();
         Fixture fb = contact.getFixtureB();
 
-        if (fa.getUserData() != null && fa.getUserData().equals("foot")) {
-            Object playerObj = fa.getBody().getUserData();
-            if (playerObj instanceof Player) {
-                ((Player) playerObj).setOnGround(false);
-            }
+        if (isPlayerFoot(fa)) {
+            setPlayerOnGround(fa, false);
+        } else if (isPlayerFoot(fb)) {
+            setPlayerOnGround(fb, false);
         }
-        if (fb.getUserData() != null && fb.getUserData().equals("foot")) {
-            Object playerObj = fb.getBody().getUserData();
-            if (playerObj instanceof Player) {
-                ((Player) playerObj).setOnGround(false);
-            }
+    }
+
+    private boolean isPlayerFoot(Fixture f) {
+        return f.getUserData() != null && f.getUserData().equals("foot");
+    }
+
+    private boolean isPlatform(Fixture f) {
+        return f.getBody().getUserData() != null && f.getBody().getUserData().equals("platform");
+    }
+
+    private void setPlayerOnGround(Fixture footFixture, boolean onGround) {
+        Object playerObj = footFixture.getBody().getUserData();
+        if (playerObj instanceof Player) {
+            ((Player) playerObj).setOnGround(onGround);
+        }
+    }
+
+    private void checkArrowCollision(Fixture fa, Fixture fb) {
+        Object ua = fa.getBody().getUserData();
+        Object ub = fb.getBody().getUserData();
+
+        if (ua instanceof Arrow) {
+            handleArrowImpact((Arrow) ua, fb);
+        } else if (ub instanceof Arrow) {
+            handleArrowImpact((Arrow) ub, fa);
+        }
+    }
+
+    private void handleArrowImpact(Arrow arrow, Fixture other) {
+        Object otherData = other.getBody().getUserData();
+
+        // Impacto con plataforma
+        if ("platform".equals(otherData)) {
+            arrow.deactivate();
+        }
+
+        // Impacto flecha JUGADOR -> ENEMIGO
+        if (arrow.isPlayerArrow() && otherData instanceof Enemy) {
+            ((Enemy) otherData).hit();
+            arrow.deactivate();
+        }
+
+        // Impacto flecha ENEMIGO -> JUGADOR (US08)
+        if (!arrow.isPlayerArrow() && otherData instanceof Player) {
+            ((Player) otherData).hit();
+            arrow.deactivate();
         }
     }
 

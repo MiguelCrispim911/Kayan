@@ -2,12 +2,17 @@ package com.kayab;
 
 public class Constants {
     public static final float PPM = 32f;   // pixels per meter
-    public static final float PLAYER_SPEED = 5f;    // metros/seg (= 160px/seg)
-    public static final float JUMP_IMPULSE = 8f;    // metros/seg impulso (un solo salto)
-    public static final float ARROW_SPEED_MPS = 15f;   // metros/seg (= 480px/seg)
-    public static final float ARROW_MAX_RANGE = 6.25f; // metros (= 200px) — JUGADOR
-    public static final float ENEMY_ARROW_RANGE = 4.7f;  // metros (= 150px) — ENEMIGOS
-    public static final float ARROW_COOLDOWN = 0.4f;  // segundos entre flechas
+    public static final float PLAYER_SPEED = 5f;
+    public static final float JUMP_IMPULSE = 3.0f;
+    public static final float ARROW_SPEED_MPS = 15f;
+    public static final float ARROW_MAX_RANGE = 6.25f; // 200px
+    public static final float ENEMY_ARROW_RANGE = 4.7f;  // 150px
+    public static final float ARROW_COOLDOWN = 0.4f;
+
+    // Enemigos
+    public static final float ENEMY_SPEED = 2f;
+    public static final float ENEMY_DETECTION_RANGE = 6.25f; // 200px (según GDD Guerrero Básico)
+    public static final float ENEMY_FIRE_RATE = 2.0f; // segundos
 
     public static final int VIRTUAL_WIDTH = 320;
     public static final int VIRTUAL_HEIGHT = 180;

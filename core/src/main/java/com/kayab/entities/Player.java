@@ -15,6 +15,9 @@ public class Player {
     private Body body;
     private boolean facingRight = true;
     private boolean onGround = false;
+    private int hp = Constants.PLAYER_MAX_HP;
+    private boolean alive = true;
+    private float hitFlashTimer = 0;
 
     public Player(World world, float startX, float startY) {
         BodyDef bodyDef = new BodyDef();
@@ -51,7 +54,11 @@ public class Player {
         body.setUserData(this);
     }
 
-    public void update(boolean moveLeft, boolean moveRight, boolean jump, float cameraLeftEdge) {
+    public void update(float delta, boolean moveLeft, boolean moveRight, boolean jump, float cameraLeftEdge) {
+        if (!alive) return;
+
+        if (hitFlashTimer > 0) hitFlashTimer -= delta;
+
         Vector2 vel = body.getLinearVelocity();
         float targetX = 0;
 
@@ -79,14 +86,27 @@ public class Player {
                 body.setLinearVelocity(0, body.getLinearVelocity().y);
             }
         }
+
+        // Muerte por caída (GDD: Caer a un hueco -> muerte instantánea)
+        if (pos.y < -1f) {
+            die();
+        }
     }
 
     public void renderDebug(ShapeRenderer sr) {
+        if (!alive) return;
+
         Vector2 pos = body.getPosition();
         float px = pos.x * Constants.PPM;
         float py = pos.y * Constants.PPM;
 
-        sr.setColor(Color.BLUE);
+        // Feedback visual de daño: parpadeo rojo
+        if (hitFlashTimer > 0 && (int)(hitFlashTimer * 10) % 2 == 0) {
+            sr.setColor(Color.RED);
+        } else {
+            sr.setColor(Color.BLUE);
+        }
+
         // Rectángulo 16x32 centrado
         sr.rect(px - 8, py - 16, 16, 32);
 
@@ -96,11 +116,37 @@ public class Player {
         sr.line(px, py + 8, px + lineDir, py + 8);
     }
 
+    public void hit() {
+        if (!alive) return;
+        hp--;
+        hitFlashTimer = 0.5f;
+        if (hp <= 0) {
+            die();
+        }
+    }
+
+    private void die() {
+        hp = 0;
+        alive = false;
+    }
+
     public void setOnGround(boolean onGround) {
         this.onGround = onGround;
     }
 
     public Vector2 getPosition() {
         return body.getPosition();
+    }
+
+    public boolean isFacingRight() {
+        return facingRight;
+    }
+
+    public int getHp() {
+        return hp;
+    }
+
+    public boolean isAlive() {
+        return alive;
     }
 }
