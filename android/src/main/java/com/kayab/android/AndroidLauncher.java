@@ -13,6 +13,9 @@ public class AndroidLauncher extends AndroidApplication {
         super.onCreate(savedInstanceState);
         AndroidApplicationConfiguration configuration = new AndroidApplicationConfiguration();
         configuration.useImmersiveMode = true; // Recommended, but not required.
-        initialize(new KayabGame(), configuration);
+
+        // Inyectamos la base de datos de Android (SQLite)
+        AndroidDatabase database = new AndroidDatabase(this);
+        initialize(new KayabGame(database), configuration);
     }
 }

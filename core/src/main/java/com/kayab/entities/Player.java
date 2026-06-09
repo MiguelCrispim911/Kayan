@@ -1,8 +1,10 @@
 package com.kayab.entities;
 
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
+import com.kayab.gfx.GameArt;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.Fixture;
@@ -14,10 +16,15 @@ import com.kayab.Constants;
 public class Player {
     private Body body;
     private boolean facingRight = true;
-    private boolean onGround = false;
+    private int groundContacts = 0; // Contador para evitar el bug de las costuras
     private int hp = Constants.PLAYER_MAX_HP;
     private boolean alive = true;
     private float hitFlashTimer = 0;
+
+    // US-12: estado de animación (no afecta física)
+    private float animTime = 0f;
+    private float shootTimer = 0f;
+    private boolean moving = false;
 
     public Player(World world, float startX, float startY) {
         BodyDef bodyDef = new BodyDef();
@@ -27,7 +34,6 @@ public class Player {
 
         body = world.createBody(bodyDef);
 
-        // Hitbox principal (16x32px)
         PolygonShape shape = new PolygonShape();
         shape.setAsBox(8f / Constants.PPM, 16f / Constants.PPM);
 
@@ -38,9 +44,7 @@ public class Player {
         body.createFixture(fixtureDef);
         shape.dispose();
 
-        // Sensor de pies para detección de suelo
         PolygonShape feetSensorShape = new PolygonShape();
-        // Un rectángulo pequeño en la base
         feetSensorShape.setAsBox(6f / Constants.PPM, 2f / Constants.PPM,
                                  new Vector2(0, -16f / Constants.PPM), 0);
 
@@ -58,6 +62,9 @@ public class Player {
         if (!alive) return;
 
         if (hitFlashTimer > 0) hitFlashTimer -= delta;
+        animTime += delta;
+        if (shootTimer > 0) shootTimer -= delta;
+        moving = moveLeft || moveRight;
 
         Vector2 vel = body.getLinearVelocity();
         float targetX = 0;
@@ -72,12 +79,12 @@ public class Player {
 
         body.setLinearVelocity(targetX, vel.y);
 
-        if (jump && onGround) {
-            body.applyLinearImpulse(new Vector2(0, Constants.JUMP_IMPULSE), body.getWorldCenter(), true);
-            onGround = false;
+        // Saltamos si hay al menos un contacto con el suelo
+        if (jump && groundContacts > 0) {
+            body.setLinearVelocity(vel.x, 0); // Limpiar velocidad vertical para saltos consistentes
+            body.applyLinearImpulse(new Vector2(0, Constants.JUMP_IMPULSE * body.getMass()), body.getWorldCenter(), true);
         }
 
-        // Lógica de pared invisible izquierda (TDD)
         float playerHalfWidth = 8f / Constants.PPM;
         Vector2 pos = body.getPosition();
         if (pos.x - playerHalfWidth < cameraLeftEdge) {
@@ -87,7 +94,6 @@ public class Player {
             }
         }
 
-        // Muerte por caída (GDD: Caer a un hueco -> muerte instantánea)
         if (pos.y < -1f) {
             die();
         }
@@ -95,58 +101,53 @@ public class Player {
 
     public void renderDebug(ShapeRenderer sr) {
         if (!alive) return;
-
         Vector2 pos = body.getPosition();
         float px = pos.x * Constants.PPM;
         float py = pos.y * Constants.PPM;
 
-        // Feedback visual de daño: parpadeo rojo
         if (hitFlashTimer > 0 && (int)(hitFlashTimer * 10) % 2 == 0) {
             sr.setColor(Color.RED);
         } else {
             sr.setColor(Color.BLUE);
         }
-
-        // Rectángulo 16x32 centrado
         sr.rect(px - 8, py - 16, 16, 32);
 
-        // Línea de dirección (TDD)
         sr.setColor(Color.WHITE);
         float lineDir = facingRight ? 8 : -8;
         sr.line(px, py + 8, px + lineDir, py + 8);
+    }
+
+    /** US-12: render con sprites (Fase 2). Mismo cuerpo Box2D, solo cambia el dibujo. */
+    public void renderSprite(SpriteBatch batch, GameArt art) {
+        if (!alive) return;
+        // Parpadeo al recibir daño: saltar el dibujo en frames alternos
+        if (hitFlashTimer > 0 && (int) (hitFlashTimer * 10) % 2 == 0) return;
+        Vector2 pos = body.getPosition();
+        boolean shooting = shootTimer > 0;
+        art.draw(batch, art.playerFrame(animTime, isOnGround(), moving, shooting),
+                 pos.x * Constants.PPM, pos.y * Constants.PPM, facingRight);
+    }
+
+    /** Llamar al disparar para mostrar la animación de tiro. */
+    public void onShoot() { shootTimer = 0.18f; }
+
+    public boolean isOnGround() { return groundContacts > 0; }
+
+    public void changeGroundContacts(int delta) {
+        groundContacts += delta;
+        if (groundContacts < 0) groundContacts = 0;
     }
 
     public void hit() {
         if (!alive) return;
         hp--;
         hitFlashTimer = 0.5f;
-        if (hp <= 0) {
-            die();
-        }
+        if (hp <= 0) die();
     }
 
-    private void die() {
-        hp = 0;
-        alive = false;
-    }
-
-    public void setOnGround(boolean onGround) {
-        this.onGround = onGround;
-    }
-
-    public Vector2 getPosition() {
-        return body.getPosition();
-    }
-
-    public boolean isFacingRight() {
-        return facingRight;
-    }
-
-    public int getHp() {
-        return hp;
-    }
-
-    public boolean isAlive() {
-        return alive;
-    }
+    private void die() { hp = 0; alive = false; }
+    public Vector2 getPosition() { return body.getPosition(); }
+    public boolean isFacingRight() { return facingRight; }
+    public int getHp() { return hp; }
+    public boolean isAlive() { return alive; }
 }

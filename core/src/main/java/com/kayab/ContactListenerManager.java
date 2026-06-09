@@ -6,6 +6,7 @@ import com.badlogic.gdx.physics.box2d.ContactListener;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.Manifold;
 import com.kayab.entities.Arrow;
+import com.kayab.entities.Boss;
 import com.kayab.entities.Enemy;
 import com.kayab.entities.Player;
 
@@ -18,9 +19,9 @@ public class ContactListenerManager implements ContactListener {
 
         // Detección de suelo para el jugador
         if (isPlayerFoot(fa) && isPlatform(fb)) {
-            setPlayerOnGround(fa, true);
+            updatePlayerGroundContacts(fa, 1);
         } else if (isPlayerFoot(fb) && isPlatform(fa)) {
-            setPlayerOnGround(fb, true);
+            updatePlayerGroundContacts(fb, 1);
         }
 
         // Colisión de flechas (US06, US07, US08)
@@ -32,10 +33,10 @@ public class ContactListenerManager implements ContactListener {
         Fixture fa = contact.getFixtureA();
         Fixture fb = contact.getFixtureB();
 
-        if (isPlayerFoot(fa)) {
-            setPlayerOnGround(fa, false);
-        } else if (isPlayerFoot(fb)) {
-            setPlayerOnGround(fb, false);
+        if (isPlayerFoot(fa) && isPlatform(fb)) {
+            updatePlayerGroundContacts(fa, -1);
+        } else if (isPlayerFoot(fb) && isPlatform(fa)) {
+            updatePlayerGroundContacts(fb, -1);
         }
     }
 
@@ -47,10 +48,10 @@ public class ContactListenerManager implements ContactListener {
         return f.getBody().getUserData() != null && f.getBody().getUserData().equals("platform");
     }
 
-    private void setPlayerOnGround(Fixture footFixture, boolean onGround) {
+    private void updatePlayerGroundContacts(Fixture footFixture, int delta) {
         Object playerObj = footFixture.getBody().getUserData();
         if (playerObj instanceof Player) {
-            ((Player) playerObj).setOnGround(onGround);
+            ((Player) playerObj).changeGroundContacts(delta);
         }
     }
 
@@ -76,6 +77,12 @@ public class ContactListenerManager implements ContactListener {
         // Impacto flecha JUGADOR -> ENEMIGO
         if (arrow.isPlayerArrow() && otherData instanceof Enemy) {
             ((Enemy) otherData).hit();
+            arrow.deactivate();
+        }
+
+        // Impacto flecha JUGADOR -> BOSS
+        if (arrow.isPlayerArrow() && otherData instanceof Boss) {
+            ((Boss) otherData).hit();
             arrow.deactivate();
         }
 

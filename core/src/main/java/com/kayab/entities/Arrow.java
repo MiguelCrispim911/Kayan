@@ -1,11 +1,13 @@
 package com.kayab.entities;
 
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.World;
 import com.kayab.Constants;
+import com.kayab.gfx.GameArt;
 
 public class Arrow {
     private Body body;
@@ -41,6 +43,15 @@ public class Arrow {
         sr.setColor(isPlayerArrow ? Color.YELLOW : Color.ORANGE);
         // Flecha de 6x2 px centrada
         sr.rect(px - 3, py - 1, 6, 2);
+    }
+
+    /** US-12: render con sprite (Fase 2). */
+    public void renderSprite(SpriteBatch batch, GameArt art) {
+        if (!active) return;
+        Vector2 pos = body.getPosition();
+        boolean right = body.getLinearVelocity().x >= 0;
+        art.draw(batch, art.getArrow(isPlayerArrow),
+                 pos.x * Constants.PPM, pos.y * Constants.PPM, right);
     }
 
     public boolean isActive() {
