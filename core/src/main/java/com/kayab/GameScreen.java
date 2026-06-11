@@ -87,8 +87,16 @@ public class GameScreen implements Screen {
     private float fireCooldown = 0f;
     private boolean levelComplete = false;
     private float levelCompleteTimer = 0f;
+    private boolean transitionStarted = false; // US16: evita disparar la cinemática 2 veces
     private float checkpointX = 2500f;
     private Color backgroundColor;
+
+    // Screenshot
+    private float levelStartedTime = 0f;
+    private static final float SCREENSHOT_BUTTON_VISIBLE_TIME = 8f; // mostrar botón por 8 segundos
+    private float screenshotButtonX = Constants.VIRTUAL_WIDTH / 2f - 40f;
+    private float screenshotButtonY = Constants.VIRTUAL_HEIGHT - 40f;
+    private float screenshotButtonW = 80f, screenshotButtonH = 30f;
 
     // US-12 — Fase visual
     private final GameArt art;
@@ -127,8 +135,12 @@ public class GameScreen implements Screen {
         arrowsToSpawn.clear();
         levelComplete = false;
         levelCompleteTimer = 0f;
+        transitionStarted = false;
+        levelStartedTime = 0f; // Reset screenshot timer
 
         player = new Player(world, 50, 60);
+        // Inicializar HP del jugador desde el save (persistente entre capítulos)
+        player.setHp(saveData.hp);
         camera.position.set(Constants.VIRTUAL_WIDTH / 2f, Constants.VIRTUAL_HEIGHT / 2f, 0);
         camera.update();
 
@@ -411,6 +423,8 @@ public class GameScreen implements Screen {
 
     @Override
     public void render(float delta) {
+        levelStartedTime += delta;
+
         Gdx.gl.glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
@@ -418,24 +432,26 @@ public class GameScreen implements Screen {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) { game.showMenu(); return; }
 
         if (!player.isAlive()) {
-            renderMessage("PLAYER DEFEATED", "TOUCH TO RETRY", Color.RED);
-            if (Gdx.input.justTouched()) initLevel();
+            // Al morir, actualizar el save con la hora y las vidas actuales y volver al menú
+            saveData.hp = player.getHp();
+            saveData.lastSaved = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date());
+            game.getDatabase().updateSave(saveData);
+            game.showMenu();
             return;
         }
 
         if (levelComplete) {
             levelCompleteTimer += delta;
-            renderMessage("CONGRATULATIONS!", "PASSED LEVEL " + saveData.currentWorld, Color.YELLOW);
-            if (levelCompleteTimer > 3f) {
-                if (saveData.currentWorld < 4) {
-                    saveData.currentWorld++;
+            if (levelCompleteTimer > 1.2f) {
+                // US16: guardar y entregar el control para la cinemática de cierre
+                if (!transitionStarted) {
+                    transitionStarted = true;
                     game.getDatabase().updateSave(saveData);
-                    initLevel();
-                } else {
-                    renderMessage("KAYAB: HERO OF THUNDER", "THE END", Color.GOLD);
-                    if (levelCompleteTimer > 6f) Gdx.app.exit();
+                    game.onWorldCleared();
                 }
+                return;
             }
+            renderMessage("¡NIVEL COMPLETADO!", "", Color.YELLOW);
             return;
         }
 
@@ -484,7 +500,12 @@ public class GameScreen implements Screen {
 
         // Juice: partículas + eventos (golpe, aterrizaje)
         updateParticles(delta);
-        if (player.getHp() < prevHp) { shake(5f, 0.3f); hitFlash = 0.25f; }
+        if (player.getHp() < prevHp) {
+            shake(5f, 0.3f); hitFlash = 0.25f;
+            // Persistir el cambio de HP en el save
+            saveData.hp = player.getHp();
+            game.getDatabase().updateSave(saveData);
+        }
         prevHp = player.getHp();
         boolean onG = player.isOnGround();
         if (onG && !prevOnGround) {
@@ -625,6 +646,76 @@ public class GameScreen implements Screen {
 
         touchControls.render(shapeRenderer);
         hud.render(shapeRenderer, player.getHp(), saveData.score, saveData.playerName);
+
+        // Renderizar botón de screenshot
+        if (levelStartedTime < SCREENSHOT_BUTTON_VISIBLE_TIME) {
+            renderScreenshotButton();
+        }
+        handleScreenshotInput();
+    }
+
+    private void renderScreenshotButton() {
+        uiViewport.apply();
+        uiBatch.setProjectionMatrix(uiCamera.combined);
+        uiBatch.begin();
+
+        // Color dorado oro con efecto de brillo
+        float goldR = 1.0f, goldG = 0.84f, goldB = 0.0f;
+
+        // Sombra del botón (efecto de profundidad)
+        uiBatch.setColor(0f, 0f, 0f, 0.3f);
+        uiBatch.draw(art.getWhite(), screenshotButtonX + 2f, screenshotButtonY - 2f, screenshotButtonW, screenshotButtonH);
+
+        // Fondo del botón con color dorado degradado
+        uiBatch.setColor(goldR, goldG, goldB, 0.85f);
+        uiBatch.draw(art.getWhite(), screenshotButtonX, screenshotButtonY, screenshotButtonW, screenshotButtonH);
+
+        // Borde superior brillante (efecto 3D)
+        uiBatch.setColor(1.0f, 1.0f, 0.6f, 0.7f);
+        uiBatch.draw(art.getWhite(), screenshotButtonX, screenshotButtonY + screenshotButtonH - 2f, screenshotButtonW, 2f);
+
+        // Borde oscuro inferior
+        uiBatch.setColor(0.8f, 0.67f, 0.0f, 0.8f);
+        uiBatch.draw(art.getWhite(), screenshotButtonX, screenshotButtonY, screenshotButtonW, 2f);
+
+        uiBatch.setColor(Color.WHITE);
+
+        // Dibujar el texto "Screenshot" con sombra
+        font.getData().setScale(0.9f);
+        font.setColor(0f, 0f, 0f, 0.5f);
+        font.draw(uiBatch, "📷 screenshot", screenshotButtonX + 12f, screenshotButtonY + 19f);
+
+        // Texto principal en blanco
+        font.setColor(Color.WHITE);
+        font.draw(uiBatch, "📷 screenshot", screenshotButtonX + 11f, screenshotButtonY + 20f);
+
+        uiBatch.end();
+    }
+
+    private void handleScreenshotInput() {
+        if (levelStartedTime >= SCREENSHOT_BUTTON_VISIBLE_TIME) return;
+
+        // Teclado: P para screenshot
+        if (Gdx.input.isKeyJustPressed(Input.Keys.P)) {
+            takeScreenshot();
+        }
+
+        // Toque en el botón
+        if (Gdx.input.justTouched()) {
+            Vector2 touch = new Vector2(Gdx.input.getX(), Gdx.input.getY());
+            uiViewport.unproject(touch);
+            if (touch.x >= screenshotButtonX && touch.x <= screenshotButtonX + screenshotButtonW &&
+                touch.y >= screenshotButtonY && touch.y <= screenshotButtonY + screenshotButtonH) {
+                takeScreenshot();
+            }
+        }
+    }
+
+    private void takeScreenshot() {
+        com.kayab.screenshot.IScreenshot service = game.getScreenshotService();
+        if (service != null) {
+            service.captureAndSave();
+        }
     }
 
     private void renderMessage(String title, String subtitle, Color color) {
@@ -698,6 +789,8 @@ public class GameScreen implements Screen {
         debugRenderer.dispose();
         shapeRenderer.dispose();
         hud.dispose();
+        // dispose touch controls resources
+        try { touchControls.dispose(); } catch (Exception e) { /* ignore */ }
         uiBatch.dispose();
         worldBatch.dispose();
         art.dispose();

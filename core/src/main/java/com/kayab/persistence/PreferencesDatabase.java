@@ -17,29 +17,67 @@ public class PreferencesDatabase implements IDatabase {
 
     @Override
     public void createSave(SaveData data) {
-        // En Preferences, simplificamos: solo guardamos uno por ahora o una lista JSON
-        updateSave(data);
+        // En Preferences guardamos una lista JSON de saves
+        if (data == null) return;
+        String raw = prefs.getString("saves", "[]");
+        Array<SaveData> saves = new Array<>();
+        try {
+            SaveData[] arr = json.fromJson(SaveData[].class, raw);
+            if (arr != null) for (SaveData s : arr) saves.add(s);
+        } catch (Exception e) { /* ignore, start fresh */ }
+
+        // Assign an id if none
+        if (data.id == 0) data.id = (int) (System.currentTimeMillis() & 0x7fffffff);
+        data.lastSaved = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date());
+        saves.add(data);
+        prefs.putString("saves", json.toJson(saves.items));
+        prefs.flush();
     }
 
     @Override
     public void updateSave(SaveData data) {
-        String jsonData = json.toJson(data);
-        prefs.putString("latest", jsonData);
+        if (data == null) return;
+        String raw = prefs.getString("saves", "[]");
+        Array<SaveData> saves = new Array<>();
+        try {
+            SaveData[] arr = json.fromJson(SaveData[].class, raw);
+            if (arr != null) for (SaveData s : arr) saves.add(s);
+        } catch (Exception e) { /* ignore */ }
+
+        boolean found = false;
+        for (int i = 0; i < saves.size; i++) {
+            if (saves.get(i).id == data.id) {
+                saves.set(i, data);
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            if (data.id == 0) data.id = (int) (System.currentTimeMillis() & 0x7fffffff);
+            saves.add(data);
+        }
+        data.lastSaved = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date());
+        prefs.putString("saves", json.toJson(saves.items));
         prefs.flush();
     }
 
     @Override
     public SaveData loadLatestSave() {
-        String data = prefs.getString("latest", null);
-        if (data == null) return null;
-        return json.fromJson(SaveData.class, data);
+        Array<SaveData> saves = loadAllSaves();
+        if (saves == null || saves.size == 0) return null;
+        // Devolver el último guardado (más reciente)
+        return saves.get(saves.size - 1);
     }
 
     @Override
     public Array<SaveData> loadAllSaves() {
         Array<SaveData> saves = new Array<>();
-        SaveData latest = loadLatestSave();
-        if (latest != null) saves.add(latest);
+        String raw = prefs.getString("saves", null);
+        if (raw == null) return saves;
+        try {
+            SaveData[] arr = json.fromJson(SaveData[].class, raw);
+            if (arr != null) for (SaveData s : arr) saves.add(s);
+        } catch (Exception e) { /* malformed, return empty */ }
         return saves;
     }
 }

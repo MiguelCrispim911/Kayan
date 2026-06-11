@@ -3,7 +3,10 @@ package com.kayab.ui;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
@@ -14,15 +17,18 @@ public class TouchControls {
     private OrthographicCamera uiCamera;
 
     // Joystick
-    private Vector2 basePos = new Vector2(60, 60);
-    private Vector2 knobPos = new Vector2(60, 60);
-    private final float BASE_RADIUS = 40f;
-    private final float KNOB_RADIUS = 15f;
+    private Vector2 basePos = new Vector2(60, 48);
+    private Vector2 knobPos = new Vector2(60, 48);
+    private final float BASE_RADIUS = 34f;
+    private final float KNOB_RADIUS = 13f;
 
     // Botón Disparo (rectángulo 70x70px según TDD)
     private float buttonX = Constants.VIRTUAL_WIDTH - 60;
-    private float buttonY = 60;
-    private float buttonSize = 70;
+    private float buttonY = 48;
+    private float buttonSize = 60;
+
+    private final SpriteBatch batch = new SpriteBatch();
+    private final BitmapFont font = new BitmapFont();
 
     public boolean moveLeft, moveRight, jumpRequest, fireHeld;
     private boolean wasJumpingLastFrame = false;
@@ -102,9 +108,23 @@ public class TouchControls {
 
         sr.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
+        // Dibujar la etiqueta "Atk" encima del botón
+        batch.setProjectionMatrix(uiViewport.getCamera().combined);
+        batch.begin();
+        font.getData().setScale(0.7f);
+        font.setColor(Color.BLACK);
+        float tx = buttonX - 12f; // aproximado para centrar
+        float ty = buttonY + 6f;
+        font.draw(batch, "Atk", tx, ty);
+        batch.end();
     }
 
     public void resize(int width, int height) {
         uiViewport.update(width, height, true);
+    }
+
+    public void dispose() {
+        batch.dispose();
+        font.dispose();
     }
 }

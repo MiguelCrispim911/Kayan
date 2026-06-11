@@ -149,5 +149,6 @@ public class Player {
     public Vector2 getPosition() { return body.getPosition(); }
     public boolean isFacingRight() { return facingRight; }
     public int getHp() { return hp; }
+    public void setHp(int hp) { this.hp = Math.max(0, Math.min(hp, Constants.PLAYER_MAX_HP)); }
     public boolean isAlive() { return alive; }
 }

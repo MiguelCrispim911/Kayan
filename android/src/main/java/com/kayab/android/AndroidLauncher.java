@@ -5,6 +5,7 @@ import android.os.Bundle;
 import com.badlogic.gdx.backends.android.AndroidApplication;
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
 import com.kayab.KayabGame;
+import com.kayab.screenshot.AndroidScreenshot;
 
 /** Launches the Android application. */
 public class AndroidLauncher extends AndroidApplication {
@@ -16,6 +17,8 @@ public class AndroidLauncher extends AndroidApplication {
 
         // Inyectamos la base de datos de Android (SQLite)
         AndroidDatabase database = new AndroidDatabase(this);
-        initialize(new KayabGame(database), configuration);
+        KayabGame game = new KayabGame(database);
+        game.setScreenshotService(new AndroidScreenshot(this));
+        initialize(game, configuration);
     }
 }

@@ -17,7 +17,7 @@ public class Constants {
     public static final int VIRTUAL_WIDTH = 320;
     public static final int VIRTUAL_HEIGHT = 180;
     public static final int TILE_SIZE = 16;
-    public static final int PLAYER_MAX_HP = 3;
+    public static final int PLAYER_MAX_HP = 8;
 
     // Puntaje
     public static final int SCORE_BASIC_ENEMY = 25;

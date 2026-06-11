@@ -13,7 +13,7 @@ public class SaveData {
         this.playerName = "Kayab";
         this.currentWorld = 1;
         this.score = 0;
-        this.hp = 3;
+        this.hp = 8;
         this.worldsComplete = "";
     }
 }
